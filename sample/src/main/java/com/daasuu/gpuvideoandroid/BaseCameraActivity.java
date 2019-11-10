@@ -14,6 +14,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ListView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -22,6 +23,7 @@ import com.daasuu.gpuv.camerarecorder.CameraRecordListener;
 import com.daasuu.gpuv.camerarecorder.GPUCameraRecorder;
 import com.daasuu.gpuv.camerarecorder.GPUCameraRecorderBuilder;
 import com.daasuu.gpuv.camerarecorder.LensFacing;
+import com.daasuu.gpuv.egl.filter.GlFilter;
 import com.daasuu.gpuvideoandroid.widget.SampleCameraGLView;
 
 import java.io.File;
@@ -52,7 +54,8 @@ public class BaseCameraActivity extends AppCompatActivity {
     private boolean toggleClick = false;
 
     protected ListView lv;
-    protected List<FilterType> filterTypes;
+    private FilterAdjuster adjuster;
+    private GlFilter filter;
 
     protected void onCreateActivity() {
         getSupportActionBar().hide();
@@ -100,9 +103,37 @@ public class BaseCameraActivity extends AppCompatActivity {
 
         lv = findViewById(R.id.filter_list);
 
-        filterTypes = FilterType.createFilterList();
+        List<FilterType> filterTypes = FilterType.createFilterList();
         lv.setAdapter(new FilterAdapter(this, R.layout.row_white_text, filterTypes).whiteMode());
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+        SeekBar filterSeekBar = findViewById(R.id.filterSeekBar);
+        filterSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (adjuster != null) {
+                    adjuster.adjust(filter, progress);
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // do nothing
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                // do nothing
+            }
+        });
+
+        lv.setOnItemClickListener((parent, view, position, id) -> {
+            if (GPUCameraRecorder != null) {
+                filter = FilterType.createGlFilter(filterTypes.get(position), getApplicationContext());
+                adjuster = FilterType.createFilterAdjuster(filterTypes.get(position));
+                GPUCameraRecorder.setFilter(filter);
+            }
+        });
     }
 
     @Override
